@@ -389,5 +389,8 @@ app.post("/api/notify-receipt", async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+}
 
+export default app;
