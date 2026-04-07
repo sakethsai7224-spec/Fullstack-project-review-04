@@ -1,0 +1,13 @@
+:{$PORT:3000}
+
+# Proxy all /api/* requests to the Express backend
+handle /api/* {
+	reverse_proxy localhost:{$BACKEND_PORT:5001}
+}
+
+# Serve the Vite build as static files with SPA fallback
+handle {
+	root * dist
+	try_files {path} /index.html
+	file_server
+}
