@@ -25,6 +25,7 @@ const DB_HOST = process.env.DB_HOST || "localhost";
 const DB_USER = process.env.DB_USER || "root";
 const DB_PASS = process.env.DB_PASS || "123456";
 const DB_NAME = process.env.DB_NAME || "relief_db";
+const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306;
 const PORT = process.env.PORT || 5000;
 
 // Temporary OTP storage (In production, use Redis or a DB table with expiry)
@@ -47,7 +48,7 @@ const transporter = nodemailer.createTransport({
 // 🔥 Create Database if it doesn't exist
 const initializeDB = async () => {
     try {
-        const connection = await mysql.createConnection({ host: DB_HOST, user: DB_USER, password: DB_PASS });
+        const connection = await mysql.createConnection({ host: DB_HOST, user: DB_USER, password: DB_PASS, port: DB_PORT });
         await connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
         console.log(`✅ Database ${DB_NAME} checked/created.`);
         await connection.end();
@@ -61,8 +62,14 @@ await initializeDB();
 // 🔥 Sequelize Setup
 const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
     host: DB_HOST,
+    port: DB_PORT,
     dialect: "mysql",
     logging: false,
+    dialectOptions: {
+        ssl: {
+            rejectUnauthorized: false
+        }
+    }
 });
 
 // 🔥 User Model
@@ -101,6 +108,7 @@ const syncDatabase = async () => {
         // We will manually drop redundant constraints if they exist.
         const connection = await mysql.createConnection({ 
             host: DB_HOST, 
+            port: DB_PORT,
             user: DB_USER, 
             password: DB_PASS, 
             database: DB_NAME 
