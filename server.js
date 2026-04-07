@@ -327,5 +327,67 @@ app.post("/api/notify-order", async (req, res) => {
     }
 });
 
+// Notify Recipient and Donor with a digital receipt when an item is received
+app.post("/api/notify-receipt", async (req, res) => {
+    try {
+        const { recipientEmail, donorEmail, item, quantity, serialId } = req.body;
+        
+        let toEmails = [];
+        if (recipientEmail && recipientEmail !== "N/A") toEmails.push(recipientEmail);
+        if (donorEmail && donorEmail !== "N/A") toEmails.push(donorEmail);
+
+        if (toEmails.length === 0) return res.status(400).json({ error: "No emails provided" });
+
+        const dateStr = new Date().toLocaleDateString();
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: toEmails.join(", "),
+            subject: "📜 Official Donation Receipt - Relief Connection",
+            text: `Receipt for ${item} (Qty: ${quantity}). Serial No: ${serialId}. Successfully transferred on ${dateStr}. Thank you!`,
+            html: `
+                <div style="font-family: 'Courier New', Courier, monospace; padding: 30px; background: #f8f9fa; max-width: 600px; margin: 0 auto; border: 2px dashed #ccc; border-radius: 10px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <span style="font-size: 40px;">🤝</span>
+                        <h2 style="color: #1e3c72; margin: 10px 0 0 0;">RELIEF CONNECTION</h2>
+                        <p style="color: #666; margin: 0;">Official Donation Receipt</p>
+                    </div>
+                    <hr style="border: none; border-top: 1px dashed #ccc;" />
+                    <div style="margin: 20px 0;">
+                        <p><strong>Tracking ID:</strong> ${serialId}</p>
+                        <p><strong>Date:</strong> ${dateStr}</p>
+                        <p><strong>Status:</strong> <span style="color: #2ed573; font-weight: bold;">DELIVERED & COMPLETED</span></p>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                        <tr style="border-bottom: 1px solid #ddd; background: #eee;">
+                            <th style="padding: 10px; text-align: left;">Item Description</th>
+                            <th style="padding: 10px; text-align: right;">Quantity</th>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 10px;">${item}</td>
+                            <td style="padding: 10px; text-align: right;">${quantity}</td>
+                        </tr>
+                    </table>
+                    <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9rem;">
+                        <p style="margin: 0 0 5px 0;"><strong>Donor:</strong> ${donorEmail || 'Anonymous Community Member'}</p>
+                        <p style="margin: 0;"><strong>Recipient:</strong> ${recipientEmail || 'General Community Use'}</p>
+                    </div>
+                    <div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 30px;">
+                        <p>This is an automated receipt for your records.</p>
+                        <p>Thank you for changing a life today. ❤️</p>
+                    </div>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`✅ Receipt sent for ${serialId} to ${toEmails.join(", ")}`);
+        res.json({ message: "Receipt sent successfully" });
+    } catch (err) {
+        console.error("❌ Receipt error:", err);
+        res.status(500).json({ error: "Failed to send receipt email." });
+    }
+});
+
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 

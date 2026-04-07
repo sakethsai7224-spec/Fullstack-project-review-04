@@ -22,6 +22,27 @@ function Logistics({ database, updateDatabase }) {
         ...database[serialId],
         status: status,
       });
+
+      // TRIGGER RECEIPT EMAIL IF DELIVERED OR COMPLETED
+      if (status === "Delivered" || status === "Completed") {
+        try {
+          const rec = database[serialId];
+          await fetch("/api/notify-receipt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipientEmail: rec.recipientEmail || rec.userEmail || "",
+              donorEmail: rec.donorEmail || "",
+              item: rec.item,
+              quantity: rec.quantity,
+              serialId: serialId
+            }),
+          });
+        } catch (emailErr) {
+          console.error("Failed to send receipt:", emailErr);
+        }
+      }
+
       alert(`Status for ${serialId} updated to ${status}!`);
       setSerialId("");
     } catch (error) {

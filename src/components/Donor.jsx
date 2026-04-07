@@ -5,6 +5,7 @@ function Donor({ updateDatabase, database }) {
   const [item, setItem] = useState("");
   const [qty, setQty] = useState("");
   const [recipient, setRecipient] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userEmail = localStorage.getItem("userEmail") || "";
@@ -48,6 +49,7 @@ function Donor({ updateDatabase, database }) {
         quantity: qty,
         status: "Pending Verification",
         recipientName: recipient || "General Donation",
+        recipientEmail: recipientEmail || "",
         timestamp: new Date().toISOString(),
       });
 
@@ -57,6 +59,7 @@ function Donor({ updateDatabase, database }) {
       setItem("");
       setQty("");
       setRecipient("");
+      setRecipientEmail("");
     } catch (error) {
       alert("Failed to record donation. Please try again.");
     } finally {
@@ -101,6 +104,7 @@ function Donor({ updateDatabase, database }) {
     }
 
     setRecipient(req.name);
+    setRecipientEmail(req.userEmail || "");
     setItem(req.item);
     setQty(req.quantity);
     window.scrollTo({ top: 0, behavior: 'smooth' });
