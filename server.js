@@ -16,6 +16,11 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.log("------------------------------------------------------------------");
 }
 
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -396,6 +401,16 @@ app.post("/api/notify-receipt", async (req, res) => {
         res.status(500).json({ error: "Failed to send receipt email." });
     }
 });
+
+// Serve React frontend in production
+if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    app.use(express.static(path.join(__dirname, 'dist')));
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+        }
+    });
+}
 
 if (!process.env.VERCEL) {
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

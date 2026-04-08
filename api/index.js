@@ -12,31 +12,33 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
+// Environment Variables
 const DB_HOST = process.env.DB_HOST || "localhost";
 const DB_USER = process.env.DB_USER || "root";
 const DB_PASS = process.env.DB_PASS || "123456";
 const DB_NAME = process.env.DB_NAME || "relief_db";
 const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306;
-const PORT = process.env.PORT || 5000;
-
-// OTP storage
-const otps = {};
+const PORT = process.env.PORT || 5001;
 
 // Nodemailer Config
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false,
+    secure: false, // TLS
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    tls: { rejectUnauthorized: false }
+    tls: {
+      rejectUnauthorized: false
+    }
 });
 
-// Sequelize Setup with SSL for Aiven
-const useSSL = DB_HOST !== "localhost" && DB_HOST !== "127.0.0.1";
+// OTP Storage
+const otps = {};
 
+// Sequelize Setup
+const useSSL = DB_HOST !== "localhost" && DB_HOST !== "127.0.0.1";
 const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
     host: DB_HOST,
     port: DB_PORT,
@@ -47,7 +49,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
     } : {}
 });
 
-// User Model
+// Models
 const User = sequelize.define("User", {
     name: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, unique: true, allowNull: false },
@@ -62,7 +64,6 @@ const User = sequelize.define("User", {
     profileImage: { type: DataTypes.TEXT('long') },
 });
 
-// Record Model
 const Record = sequelize.define("Record", {
     serialId: { type: DataTypes.STRING, primaryKey: true },
     type: { type: DataTypes.STRING },
@@ -75,39 +76,61 @@ const Record = sequelize.define("Record", {
     otherInfo: { type: DataTypes.JSON },
 });
 
-// Initialize DB lazily (works in serverless)
+// Database Initialization (Lazy)
 let dbInitialized = false;
 const ensureDB = async () => {
     if (dbInitialized) return;
     try {
-        const connection = await mysql.createConnection({
+        console.log("🔄 Initializing DB...");
+        const connection = await mysql.createConnection({ 
             host: DB_HOST, user: DB_USER, password: DB_PASS, port: DB_PORT,
             ssl: useSSL ? { rejectUnauthorized: false } : undefined
         });
         await connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
+        
+        // Index pruning logic to prevent duplicate unique keys
+        try {
+            const [indexes] = await connection.query(`SHOW INDEX FROM Users WHERE Non_unique = 0 AND Key_name != 'PRIMARY'`);
+            if (indexes.length > 50) {
+                console.log("⚠️ Pruning redundant unique constraints from Users table...");
+                const emailIndexes = indexes.filter(idx => idx.Column_name === 'email');
+                if (emailIndexes.length > 1) {
+                    for (let i = 1; i < emailIndexes.length; i++) {
+                        await connection.query(`ALTER TABLE Users DROP INDEX \`${emailIndexes[i].Key_name}\``);
+                    }
+                }
+            }
+        } catch (idxErr) {
+            console.log("ℹ️ Index check skipped or table doesn't exist yet.");
+        }
+
         await connection.end();
+        console.log("✅ Database verified.");
+
         await sequelize.sync({ alter: false });
         dbInitialized = true;
-        console.log("✅ DB ready");
+        console.log("✅ Sequelize models synced.");
     } catch (err) {
-        console.error("❌ DB init error:", err.message);
+        console.error("❌ DB Init Error:", err.message);
         throw err;
     }
 };
 
-// Middleware to ensure DB is ready before any API call
-app.use(async (req, res, next) => {
+// Middleware to ensure DB is ready - Mount at /api
+const router = express.Router();
+
+router.use(async (req, res, next) => {
     try {
         await ensureDB();
         next();
     } catch (err) {
-        res.status(500).json({ error: "Database connection failed: " + err.message });
+        res.status(500).json({ error: "Database connection failed. Please ensure DB_HOST, DB_USER, DB_PASS are set correctly in Vercel environment variables. Error: " + err.message });
     }
 });
 
 // --- API ROUTES ---
 
-app.get("/api/database", async (req, res) => {
+router.get("/database", async (req, res) => {
     try {
         const { userEmail } = req.query;
         if (!userEmail) return res.status(400).json({ error: "Missing userEmail" });
@@ -141,7 +164,7 @@ app.get("/api/database", async (req, res) => {
     }
 });
 
-app.post("/api/database", async (req, res) => {
+router.post("/database", async (req, res) => {
     try {
         const { serialId, data } = req.body;
         const userEmail = data.userEmail;
@@ -158,7 +181,7 @@ app.post("/api/database", async (req, res) => {
     }
 });
 
-app.post("/api/signup", async (req, res) => {
+router.post("/signup", async (req, res) => {
     try {
         const { name, email, password, phone } = req.body;
         const existingUser = await User.findOne({ where: { email } });
@@ -171,7 +194,7 @@ app.post("/api/signup", async (req, res) => {
     }
 });
 
-app.post("/api/login", async (req, res) => {
+router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ where: { email, password } });
@@ -183,7 +206,7 @@ app.post("/api/login", async (req, res) => {
     }
 });
 
-app.put("/api/auth/me", async (req, res) => {
+router.put("/auth/me", async (req, res) => {
     try {
         const { email, name, age, job, phone, location, purpose, rating, about, profileImage } = req.body;
         const user = await User.findOne({ where: { email } });
@@ -196,7 +219,7 @@ app.put("/api/auth/me", async (req, res) => {
     }
 });
 
-app.post("/api/forgot-password", async (req, res) => {
+router.post("/forgot-password", async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ where: { email } });
@@ -215,11 +238,12 @@ app.post("/api/forgot-password", async (req, res) => {
         await transporter.sendMail(mailOptions);
         res.json({ message: "OTP sent to your email", devOtp: otp });
     } catch (err) {
-        res.status(500).json({ error: "Failed to send email." });
+        console.error("Email Error:", err);
+        res.status(500).json({ error: "Failed to send email. Check EMAIL_USER and EMAIL_PASS." });
     }
 });
 
-app.post("/api/verify-otp", async (req, res) => {
+router.post("/verify-otp", async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
         if (otps[email] !== otp) return res.status(400).json({ error: "Invalid or expired OTP" });
@@ -235,7 +259,7 @@ app.post("/api/verify-otp", async (req, res) => {
     }
 });
 
-app.post("/api/notify-order", async (req, res) => {
+router.post("/notify-order", async (req, res) => {
     try {
         const { recipientEmail, donorName, itemName, quantity } = req.body;
         if (!recipientEmail) return res.status(400).json({ error: "Missing recipient email" });
@@ -252,7 +276,7 @@ app.post("/api/notify-order", async (req, res) => {
     }
 });
 
-app.post("/api/notify-receipt", async (req, res) => {
+router.post("/notify-receipt", async (req, res) => {
     try {
         const { recipientEmail, donorEmail, item, quantity, serialId } = req.body;
         let toEmails = [];
@@ -273,15 +297,16 @@ app.post("/api/notify-receipt", async (req, res) => {
     }
 });
 
-// Health check
-app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", message: "Relief Connection API is running!" });
+router.get("/health", (req, res) => {
+    res.json({ status: "ok", message: "Relief Connection API is running!", db_host: DB_HOST });
 });
 
-// Start server locally (not on Vercel)
+// Mount the router on /api
+app.use("/api", router);
+
+// Handle local running
 if (!process.env.VERCEL) {
-    const localPort = PORT || 5001;
-    app.listen(localPort, () => console.log(`🚀 Server running on port ${localPort}`));
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 }
 
 export default app;
