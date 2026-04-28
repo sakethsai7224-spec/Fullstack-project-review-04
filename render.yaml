@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: relief-connection
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: EMAIL_ENABLED
+        value: true
+      - key: MAIL_PROVIDER
+        value: smtp
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: https://*.onrender.com

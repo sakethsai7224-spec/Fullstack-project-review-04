@@ -1,29 +1,8 @@
-# Logs
-logs
-*.log
-
-# Environment variables - NEVER commit these
+node_modules/
+dist/
+target/
 .env
 .env.local
-.env.production
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Old mixed project extracted from the ZIP; the clean split lives in frontend/ and backend/.
+full-review-04/

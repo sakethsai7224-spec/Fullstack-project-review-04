@@ -1,0 +1,9 @@
+.git
+.gitignore
+full-review-04
+relief-connection-springboot.zip
+**/node_modules
+**/dist
+**/target
+frontend/.env
+backend/.env
