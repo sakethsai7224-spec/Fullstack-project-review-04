@@ -26,9 +26,7 @@ Railway, Aiven, PlanetScale, Clever Cloud, or your own MySQL server.
 Create a database and keep these values ready:
 
 ```text
-DB_HOST
-DB_PORT
-DB_NAME
+DATABASE_URL
 DB_USER
 DB_PASS
 ```
@@ -80,6 +78,15 @@ EMAIL_PASS=your_gmail_app_password
 DB_HOST=your_mysql_host
 DB_PORT=3306
 DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASS=your_database_password
+```
+
+For Render, put the MySQL connection in `DATABASE_URL`:
+
+```text
+DATABASE_URL=jdbc:mysql://your_mysql_host:3306/your_database_name?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+DB_DRIVER=com.mysql.cj.jdbc.Driver
 DB_USER=your_database_user
 DB_PASS=your_database_password
 ```

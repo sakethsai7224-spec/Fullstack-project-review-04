@@ -15,12 +15,10 @@ services:
         sync: false
       - key: EMAIL_PASS
         sync: false
-      - key: DB_HOST
+      - key: DATABASE_URL
         sync: false
-      - key: DB_PORT
-        value: 3306
-      - key: DB_NAME
-        sync: false
+      - key: DB_DRIVER
+        value: com.mysql.cj.jdbc.Driver
       - key: DB_USER
         sync: false
       - key: DB_PASS
